@@ -1,18 +1,26 @@
 export default async function handler(req, res) {
-  // Only allow POST requests
+  // ✅ Allow CORS
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // ✅ Handle preflight request
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  // Only allow POST after that
   if (req.method !== "POST") {
     return res.status(405).json({ output: "Method not allowed" });
   }
 
   const { prompt } = req.body || {};
 
-  // Validate input
   if (!prompt) {
     return res.status(400).json({ output: "Missing prompt" });
   }
 
   try {
-    // Call OpenAI
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
@@ -24,8 +32,7 @@ export default async function handler(req, res) {
         input: [
           {
             role: "system",
-            content:
-              "You are an expert enterprise sales coach using the MEDDPICC framework. Provide clear, tactical, actionable guidance."
+            content: "You are an expert enterprise sales coach using MEDDPICC. Be tactical and specific."
           },
           {
             role: "user",
@@ -37,19 +44,11 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // Extract output safely
-    const output =
-      data.output_text ||
-      data.output?.map?.(x =>
-        x?.content?.map?.(c => c?.text).join(" ")
-      ).join("\n") ||
-      JSON.stringify(data);
-
-    return res.status(200).json({ output });
+    return res.status(200).json({
+      output: data.output_text || JSON.stringify(data)
+    });
 
   } catch (error) {
-    return res.status(500).json({
-      output: "AI request failed. Check your API key and deployment."
-    });
+    return res.status(500).json({ output: "AI request failed." });
   }
 }
